@@ -7,9 +7,23 @@
     <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
     <style>
         * { box-sizing: border-box; margin: 0; padding: 0; }
-        body { font-family: system-ui, sans-serif; background: #f5f7fa; padding: 20px; max-width: 600px; margin: 0 auto; }
-        h1 { font-size: 1.5rem; text-align: center; margin-bottom: 20px; }
-        #reader { width: 100%; max-width: 400px; margin: 0 auto 20px; }
+        body {
+            font-family: system-ui, sans-serif;
+            background: #f5f7fa;
+            padding: 20px;
+            max-width: 600px;
+            margin: 0 auto;
+        }
+        h1 {
+            font-size: 1.5rem;
+            text-align: center;
+            margin-bottom: 20px;
+        }
+        #reader {
+            width: 100%;
+            max-width: 400px;
+            margin: 0 auto 20px;
+        }
         #result {
             background: white;
             border-radius: 16px;
@@ -17,9 +31,20 @@
             box-shadow: 0 4px 12px rgba(0,0,0,0.1);
             display: none;
         }
-        .field { display: flex; border-bottom: 1px solid #eee; padding: 10px 0; }
-        .label { font-weight: 600; width: 40%; color: #555; }
-        .value { width: 60%; color: #1a1a1a; }
+        .field {
+            display: flex;
+            border-bottom: 1px solid #eee;
+            padding: 10px 0;
+        }
+        .label {
+            font-weight: 600;
+            width: 40%;
+            color: #555;
+        }
+        .value {
+            width: 60%;
+            color: #1a1a1a;
+        }
         .btn {
             background: #2563eb;
             color: white;
@@ -32,15 +57,35 @@
             margin: 20px auto;
             width: fit-content;
         }
-        .btn:hover { background: #1d4ed8; }
-        .error { color: #dc2626; text-align: center; margin: 10px 0; }
-        .loading { text-align: center; color: #6b7280; }
+        .btn:hover {
+            background: #1d4ed8;
+        }
+        .btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+        .error {
+            color: #dc2626;
+            text-align: center;
+            margin: 10px 0;
+        }
+        .loading {
+            text-align: center;
+            color: #6b7280;
+        }
+        .status {
+            text-align: center;
+            margin: 10px 0;
+            color: #6b7280;
+            font-size: 0.9rem;
+        }
     </style>
 </head>
 <body>
     <h1>📦 Сканер заказов</h1>
     <div id="reader"></div>
     <button class="btn" id="scan-btn">📷 Сканировать QR</button>
+    <div id="status" class="status"></div>
     <div id="result">
         <h2 style="margin-bottom: 12px; font-size: 1.2rem;">Данные заказа</h2>
         <div id="fields-container"></div>
@@ -48,8 +93,13 @@
     <div id="error-message" class="error"></div>
 
     <script>
+        // ⚠️ ЗАМЕНИТЕ НА ВАШ URL ВЕБ-ПРИЛОЖЕНИЯ
         const API_URL = 'https://script.google.com/macros/s/AKfycbw-YwfPM4M3BNFF8g-QlRl1Zq-6zMj-GRPxE7jAow9-8f0CdWXTyLzED6xo3EBzc_2nLg/exec';
 
+        let html5QrCode = null;
+        let isScanning = false;
+
+        // ===== ОТОБРАЖЕНИЕ КАРТОЧКИ ЗАКАЗА =====
         function displayOrder(order) {
             const container = document.getElementById('fields-container');
             container.innerHTML = '';
@@ -71,6 +121,7 @@
             document.getElementById('error-message').textContent = '';
         }
 
+        // ===== ПОИСК ЗАКАЗА ПО НОМЕРУ =====
         async function findOrder(orderNumber) {
             try {
                 const response = await fetch(API_URL + '?order=' + encodeURIComponent(orderNumber));
@@ -88,30 +139,106 @@
             }
         }
 
-        let html5QrCode;
-        function startScanner() {
+        // ===== ОСТАНОВКА СКАНЕРА =====
+        function stopScanner() {
             if (html5QrCode) {
-                html5QrCode.stop().then(() => html5QrCode.clear());
+                html5QrCode.stop()
+                    .then(() => {
+                        html5QrCode.clear();
+                        html5QrCode = null;
+                        document.getElementById('status').textContent = 'Сканер остановлен';
+                    })
+                    .catch(err => {
+                        console.warn('Ошибка остановки:', err);
+                        html5QrCode = null;
+                    });
             }
+            isScanning = false;
+            document.getElementById('scan-btn').disabled = false;
+            document.getElementById('scan-btn').textContent = '📷 Сканировать QR';
+            // Возвращаем обработчик на старт
+            document.getElementById('scan-btn').onclick = startScanner;
+        }
+
+        // ===== ЗАПУСК СКАНЕРА =====
+        function startScanner() {
+            if (isScanning) return; // Уже сканируем
+
+            // Очищаем предыдущие результаты
+            document.getElementById('result').style.display = 'none';
+            document.getElementById('error-message').textContent = '';
+            document.getElementById('fields-container').innerHTML = '';
+
+            // Если есть старый экземпляр – останавливаем и удаляем
+            if (html5QrCode) {
+                stopScanner();
+                // Небольшая задержка, чтобы ресурсы освободились
+                setTimeout(() => initScanner(), 300);
+            } else {
+                initScanner();
+            }
+        }
+
+        // ===== ИНИЦИАЛИЗАЦИЯ НОВОГО СКАНЕРА =====
+        function initScanner() {
+            const readerElement = document.getElementById('reader');
+            readerElement.innerHTML = ''; // Очищаем контейнер
+
             html5QrCode = new Html5Qrcode("reader");
-            const config = { fps: 10, qrbox: { width: 250, height: 250 }, aspectRatio: 1.0 };
+            const config = {
+                fps: 10,
+                qrbox: { width: 250, height: 250 },
+                aspectRatio: 1.0
+            };
+
+            isScanning = true;
+            document.getElementById('scan-btn').disabled = true;
+            document.getElementById('scan-btn').textContent = '⏳ Запуск...';
+            document.getElementById('status').textContent = 'Запуск камеры...';
+
             html5QrCode.start(
                 { facingMode: "environment" },
                 config,
                 (decodedText) => {
-                    html5QrCode.stop();
-                    document.getElementById('result').style.display = 'none';
-                    document.getElementById('error-message').textContent = '';
-                    document.getElementById('fields-container').innerHTML = '<div class="loading">⏳ Поиск...</div>';
+                    // УСПЕШНОЕ СКАНИРОВАНИЕ
+                    document.getElementById('status').textContent = 'QR найден!';
+                    // Останавливаем сканер (чтобы освободить камеру)
+                    stopScanner();
+                    // Ищем заказ
                     findOrder(decodedText.trim());
                 },
-                () => {} // игнорируем ошибки сканирования
-            ).catch(err => {
+                (errorMessage) => {
+                    // Промежуточные ошибки сканирования игнорируем
+                    // Можно выводить статус, но не спамим
+                }
+            ).then(() => {
+                document.getElementById('status').textContent = 'Сканирование активно, наведите на QR-код';
+                document.getElementById('scan-btn').disabled = false;
+                document.getElementById('scan-btn').textContent = '🔴 Остановить сканер';
+                // Меняем обработчик кнопки на остановку
+                document.getElementById('scan-btn').onclick = function() {
+                    stopScanner();
+                };
+            }).catch(err => {
+                document.getElementById('status').textContent = 'Ошибка камеры';
                 document.getElementById('error-message').textContent = '❌ Ошибка камеры: ' + err;
+                isScanning = false;
+                document.getElementById('scan-btn').disabled = false;
+                document.getElementById('scan-btn').textContent = '📷 Сканировать QR';
+                document.getElementById('scan-btn').onclick = startScanner;
+                html5QrCode = null;
             });
         }
 
+        // ===== ПЕРВОНАЧАЛЬНАЯ НАСТРОЙКА КНОПКИ =====
         document.getElementById('scan-btn').addEventListener('click', startScanner);
+
+        // ===== ОСТАНОВКА ПРИ ЗАКРЫТИИ СТРАНИЦЫ =====
+        window.addEventListener('beforeunload', function() {
+            if (html5QrCode) {
+                html5QrCode.stop().catch(() => {});
+            }
+        });
     </script>
 </body>
 </html>
