@@ -1,0 +1,139 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="800" height="600" viewBox="0 0 800 600" xmlns="http://www.w3.org/2000/svg">
+    <!-- Основные стили -->
+    <defs>
+        <style>
+            .room {
+                fill: #E3F2FD;
+                stroke: #90CAF9;
+                stroke-width: 2;
+                transition: all 0.3s ease;
+            }
+            
+            .room:hover {
+                fill: #BBDEFB;
+                cursor: pointer;
+            }
+            
+            .room-label {
+                font-family: Arial, sans-serif;
+                font-size: 14px;
+                font-weight: bold;
+                fill: #1976D2;
+                text-anchor: middle;
+                dominant-baseline: middle;
+            }
+            
+            .room-number {
+                font-family: Arial, sans-serif;
+                font-size: 12px;
+                fill: #666;
+                text-anchor: middle;
+            }
+        </style>
+    </defs>
+    
+    <!-- Фон -->
+    <rect x="0" y="0" width="800" height="600" fill="#FAFAFA" stroke="#E0E0E0" stroke-width="1"/>
+    
+    <!-- Заголовок -->
+    <text x="400" y="40" class="room-label" style="font-size: 24px; font-weight: bold;">
+        ПЛАН ЦЕХА
+    </text>
+    
+    <!-- Участок резки (LOC-CUT) -->
+    <g id="loc-cut">
+        <rect x="50" y="80" width="180" height="120" class="room"/>
+        <text x="140" y="120" class="room-label">Резка</text>
+        <text x="140" y="145" class="room-number">LOC-CUT</text>
+    </g>
+    
+    <!-- Участок скругления (LOC-BEVEL) -->
+    <g id="loc-bevel">
+        <rect x="250" y="80" width="180" height="120" class="room"/>
+        <text x="340" y="120" class="room-label">Скругление</text>
+        <text x="340" y="145" class="room-number">LOC-BEVEL</text>
+    </g>
+    
+    <!-- Участок очистки (LOC-CLEAN) -->
+    <g id="loc-clean">
+        <rect x="450" y="80" width="180" height="120" class="room"/>
+        <text x="540" y="120" class="room-label">Очистка</text>
+        <text x="540" y="145" class="room-number">LOC-CLEAN</text>
+    </g>
+    
+    <!-- Участок сварки (LOC-WELD) -->
+    <g id="loc-weld">
+        <rect x="650" y="80" width="120" height="120" class="room"/>
+        <text x="710" y="120" class="room-label">Сварка</text>
+        <text x="710" y="145" class="room-number">LOC-WELD</text>
+    </g>
+    
+    <!-- Участок шлифовки (LOC-GRIND) -->
+    <g id="loc-grind">
+        <rect x="50" y="220" width="180" height="120" class="room"/>
+        <text x="140" y="260" class="room-label">Шлифовка</text>
+        <text x="140" y="285" class="room-number">LOC-GRIND</text>
+    </g>
+    
+    <!-- Участок штамповки (LOC-STAMP) -->
+    <g id="loc-stamp">
+        <rect x="250" y="220" width="180" height="120" class="room"/>
+        <text x="340" y="260" class="room-label">Штамповка</text>
+        <text x="340" y="285" class="room-number">LOC-STAMP</text>
+    </g>
+    
+    <!-- Участок наварки фланца (LOC-FLANGE) -->
+    <g id="loc-flange">
+        <rect x="450" y="220" width="180" height="120" class="room"/>
+        <text x="540" y="260" class="room-label">Фланец</text>
+        <text x="540" y="285" class="room-number">LOC-FLANGE</text>
+    </g>
+    
+    <!-- Участок термообработки (LOC-HEAT) -->
+    <g id="loc-heat">
+        <rect x="650" y="220" width="120" height="120" class="room"/>
+        <text x="710" y="260" class="room-label">Термообработка</text>
+        <text x="710" y="285" class="room-number">LOC-HEAT</text>
+    </g>
+    
+    <!-- Участок обрезки (LOC-TRIM) -->
+    <g id="loc-trim">
+        <rect x="50" y="360" width="180" height="120" class="room"/>
+        <text x="140" y="400" class="room-label">Обрезка</text>
+        <text x="140" y="425" class="room-number">LOC-TRIM</text>
+    </g>
+    
+    <!-- Коридоры и проходы -->
+    <rect x="230" y="80" width="20" height="400" fill="#F5F5F5" stroke="#E0E0E0" stroke-width="1"/>
+    <rect x="430" y="80" width="20" height="400" fill="#F5F5F5" stroke="#E0E0E0" stroke-width="1"/>
+    <rect x="630" y="80" width="20" height="400" fill="#F5F5F5" stroke="#E0E0E0" stroke-width="1"/>
+    
+    <!-- Главный вход -->
+    <rect x="50" y="520" width="60" height="30" fill="#4CAF50" stroke="#388E3C" stroke-width="2"/>
+    <text x="80" y="540" class="room-label" style="font-size: 10px; fill: #fff;">ВХОД</text>
+    
+    <!-- Выход -->
+    <rect x="700" y="520" width="60" height="30" fill="#F44336" stroke="#D32F2F" stroke-width="2"/>
+    <text x="730" y="540" class="room-label" style="font-size: 10px; fill: #fff;">ВЫХОД</text>
+    
+    <!-- Легенда -->
+    <g transform="translate(250, 510)">
+        <rect x="0" y="0" width="300" height="50" fill="#fff" stroke="#E0E0E0" stroke-width="1"/>
+        <text x="150" y="15" class="room-label" style="font-size: 12px;">Легенда:</text>
+        <rect x="20" y="25" width="20" height="15" fill="#E3F2FD" stroke="#90CAF9" stroke-width="1"/>
+        <text x="50" y="37" class="room-label" style="font-size: 10px;">Участок</text>
+        <rect x="120" y="25" width="20" height="15" fill="#FFEB3B" stroke="#F44336" stroke-width="2"/>
+        <text x="150" y="37" class="room-label" style="font-size: 10px;">Активный участок</text>
+    </g>
+    
+    <!-- Инструкция -->
+    <text x="50" y="570" style="font-family: Arial, sans-serif; font-size: 10px; fill: #999;">
+        Сканируйте QR-код участка для выбора, затем сканируйте детали
+    </text>
+    
+    <!-- Декоративные элементы -->
+    <circle cx="750" cy="50" r="5" fill="#2196F3"/>
+    <circle cx="50" cy="550" r="5" fill="#4CAF50"/>
+    <circle cx="750" cy="550" r="5" fill="#F44336"/>
+</svg>
