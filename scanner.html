@@ -323,22 +323,30 @@
         const infoMessage = document.getElementById('info-message');
 
         // ==================== ИНИЦИАЛИЗАЦИЯ ====================
-        document.addEventListener('DOMContentLoaded', () => {
+        document.addEventListener('DOMContentLoaded', async () => {
+            // Инициализация SVG
             initSvg();
+            
+            // Инициализация сканера с задержкой для загрузки всех ресурсов
+            await new Promise(resolve => setTimeout(resolve, 500));
             initScanner();
+            
             updateStatus('📍 Ожидание сканирования участка', 'info');
         });
 
         // ==================== ИНИЦИАЛИЗАЦИЯ SVG ====================
         function initSvg() {
             planSvg.addEventListener('load', () => {
-                svgDocument = planSvg.contentDocument;
-                console.log('SVG план загружен');
+                try {
+                    svgDocument = planSvg.contentDocument;
+                    console.log('SVG план загружен');
+                } catch (e) {
+                    console.warn('Не удалось получить доступ к SVG документу:', e);
+                }
             });
 
             planSvg.addEventListener('error', () => {
-                console.warn('Не удалось загрузи��ь SVG план. Работа продолжится без подсветки.');
-                // Приложение продолжает работать без SVG
+                console.warn('Не удалось загрузить SVG план. Работа продолжится без подсветки.');
             });
         }
 
@@ -385,7 +393,7 @@
         // ==================== ПРЕОБРАЗОВАНИЕ КОДА ДЛЯ SVG ====================
         function transformLocationCode(code) {
             // Преобразуем LOC-WELD → loc-weld
-            return code.toLowerCase().replace('loc-', 'loc-');
+            return 'loc-' + code.toLowerCase().replace('loc-', '');
         }
 
         // ==================== ПОДСВЕТКА УЧАСТКА В SVG ====================
@@ -554,8 +562,11 @@
                 return;
             }
 
+            // Нормализуем номер заказа (убираем пробелы и приводим к строке)
+            const normalizedOrder = String(orderNumber).trim();
+
             // Проверка на повторное сканирование той же детали
-            if (lastScannedOrder === orderNumber) {
+            if (lastScannedOrder === normalizedOrder) {
                 showInfoMessage('ℹ️ Деталь уже привязана к текущему участку');
                 return;
             }
@@ -564,15 +575,22 @@
             updateStatus('⏳ Обработка...', 'info');
 
             try {
-                // Отправляем POST-запрос для обновления участка
+                // Отправляем POST-запрос с данными в теле запроса
                 const formData = new URLSearchParams();
-                formData.append('order', orderNumber);
+                formData.append('order', normalizedOrder);
                 formData.append('location', currentLocation);
 
-                const response = await fetch(`${API_URL}?order=${orderNumber}`, {
+                // Таймаут запроса — 10 секунд
+                const controller = new AbortController();
+                const timeoutId = setTimeout(() => controller.abort(), 10000);
+
+                const response = await fetch(API_URL, {
                     method: 'POST',
-                    body: formData
+                    body: formData,
+                    signal: controller.signal
                 });
+
+                clearTimeout(timeoutId);
 
                 if (!response.ok) {
                     throw new Error(`Ошибка сервера: ${response.status}`);
@@ -581,12 +599,12 @@
                 const data = await response.json();
                 
                 // Обновляем последнюю отсканированную деталь
-                lastScannedOrder = orderNumber;
+                lastScannedOrder = normalizedOrder;
 
                 // Отображаем данные заказа
                 displayOrderData(data);
 
-                updateStatus(`✅ Заказ ${orderNumber} обновлён!`, 'success');
+                updateStatus(`✅ Заказ ${normalizedOrder} обновлён!`, 'success');
                 
                 setTimeout(() => {
                     updateStatus(`📍 Участок: ${LOCATION_NAMES[currentLocation]}. Сканируйте детали`, 'info');
@@ -594,15 +612,19 @@
 
             } catch (error) {
                 console.error('Ошибка обработки заказа:', error);
-                updateStatus(`❌ Ошибка: ${error.message}`, 'error');
-                showInfoMessage(`❌ Не удалось обновить заказ ${orderNumber}`);
+                if (error.name === 'AbortError') {
+                    updateStatus('❌ Превышено время ожидания ответа сервера', 'error');
+                } else {
+                    updateStatus(`❌ Ошибка: ${error.message}`, 'error');
+                }
+                showInfoMessage(`❌ Не удалось обновить заказ ${normalizedOrder}`);
             }
         }
 
         // ==================== ОБРАБОТКА ОШИБКИ СКАНИРОВАНИЯ ====================
         function onScanFailure(error) {
-            console.warn(`Ошибка сканирования: ${error}`);
-            // Не останавливаем сканер, просто продолжаем работу
+            // Обычное дело — нет QR-кода в кадре. Не показываем ошибки.
+            // console.debug(`Ошибка сканирования: ${error}`);
         }
 
         // ==================== ОТОБРАЖЕНИЕ ДАННЫХ ЗАКАЗА ====================
@@ -613,30 +635,27 @@
             // Удаляем старые дочерние элементы
             orderDetails.innerHTML = '';
 
-            // Обновляем заголовок
-            orderTitle.textContent = `Данные заказа #${data.订单号 || data.orderNumber || 'N/A'}`;
+            // Обновляем заголовок — используем корректные ключи
+            const orderNum = data['№заказа'] || data.orderNumber || data['订单号'] || 'N/A';
+            orderTitle.textContent = `Данные заказа #${orderNum}`;
 
             // Создаем элементы для отображения данных
             const fields = [
-                { label: 'Заказчик', value: data.заказчик || data.customer || 'N/A' },
-                { label: 'Диаметр', value: data.Диаметр || data.diameter || 'N/A' },
-                { label: 'Толщина', value: data.толщина || data.thickness || 'N/A' },
-                { label: 'Материал', value: data.материал || data.material || 'N/A' },
+                { label: 'Заказчик', value: data['заказчик'] || data.customer || 'N/A' },
+                { label: 'Диаметр', value: data['Диаметр'] || data.diameter || 'N/A' },
+                { label: 'Толщина', value: data['толщина'] || data.thickness || 'N/A' },
+                { label: 'Материал', value: data['материал'] || data.material || 'N/A' },
                 { label: 'Дата отгрузки', value: data['дата отгрузки'] || data.shippingDate || 'N/A' },
-                { label: 'Текущий участок', value: LOCATION_NAMES[currentLocation] || currentLocation }
+                { label: 'Текущий участок', value: LOCATION_NAMES[currentLocation] || currentLocation, isLocation: true }
             ];
 
             fields.forEach(field => {
                 const div = document.createElement('div');
                 div.className = 'detail-item';
                 
-                if (field.label === 'Текущий участок') {
-                    div.querySelector('.detail-value').classList.add('location');
-                }
-
                 div.innerHTML = `
                     <span class="detail-label">${field.label}</span>
-                    <span class="detail-value">${field.value}</span>
+                    <span class="detail-value${field.isLocation ? ' location' : ''}">${field.value}</span>
                 `;
                 
                 orderDetails.appendChild(div);
@@ -676,15 +695,20 @@
         });
 
         // ==================== ОБРАБОТКА ИЗМЕНЕНИЯ РАЗМЕРА ОКНА ====================
+        let resizeTimeout;
         window.addEventListener('resize', () => {
-            if (qrScanner && isScannerActive) {
-                // Пересчитываем размеры сканера при изменении размера окна
-                const qrBox = qrReader.querySelector('.qr-code-scanner-container');
-                if (qrBox) {
-                    qrBox.style.width = Math.min(window.innerWidth - 32, 400) + 'px';
-                    qrBox.style.height = 'auto';
+            // Debounce для производительности
+            clearTimeout(resizeTimeout);
+            resizeTimeout = setTimeout(() => {
+                if (qrScanner && isScannerActive) {
+                    // Пересчитываем размеры сканера при изменении размера окна
+                    const qrBox = qrReader.querySelector('.qr-code-scanner-container');
+                    if (qrBox) {
+                        qrBox.style.width = Math.min(window.innerWidth - 32, 400) + 'px';
+                        qrBox.style.height = 'auto';
+                    }
                 }
-            }
+            }, 150);
         });
     </script>
 </body>
